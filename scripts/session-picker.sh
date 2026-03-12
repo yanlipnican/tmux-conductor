@@ -109,7 +109,7 @@ generate() {
 
     # Header + active rows first + inactive rows
     R_TYPE[$idx]="header"; R_REPO[$idx]="$repo_name"
-    R_WT_PATH[$idx]="HEADER"; R_WT_BRANCH[$idx]="HEADER"; R_SESSION_NAME[$idx]="HEADER"
+    R_WT_PATH[$idx]="$main_dir"; R_WT_BRANCH[$idx]="HEADER"; R_SESSION_NAME[$idx]="HEADER"
     idx=$((idx + 1))
 
     for ((j = 0; j < ac; j++)); do
@@ -354,7 +354,8 @@ fi
 if [ "$1" = "--delete" ]; then
   wt_path="$2"
   session_name="$3"
-  [ "$wt_path" = "HEADER" ] && exit 0
+  [ "$wt_path" = "HEADER" ] && exit 0    # column header line
+  [ "$session_name" = "HEADER" ] && exit 0  # project group header
 
   if [ "$session_name" != "-" ]; then
     confirm=$(printf 'no\nyes' | fzf --prompt "Kill session $session_name? " --height 4 --reverse)
