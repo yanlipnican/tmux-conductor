@@ -22,7 +22,7 @@ Optional:
 ### Via TPM
 
 ```bash
-set -g @plugin 'janlipnican/tmux-conductor'
+set -g @plugin 'yanlipnican/tmux-conductor'
 ```
 
 Then `prefix + I` to install.
@@ -30,7 +30,7 @@ Then `prefix + I` to install.
 ### Manual / development
 
 ```bash
-git clone https://github.com/janlipnican/tmux-conductor ~/.tmux/plugins/tmux-conductor
+git clone https://github.com/yanlipnican/tmux-conductor ~/.tmux/plugins/tmux-conductor
 ```
 
 Add to `tmux.conf`:
@@ -60,7 +60,7 @@ Set options in `tmux.conf` **before** `run tpm` (or `run-shell`):
 set -g @conductor-projects "$HOME/Workspace/myapp:$HOME/Workspace/other-repo"
 set -g @conductor-worktrees-dir "$HOME/Workspace/worktrees"
 set -g @conductor-key "W"
-set -g @plugin 'janlipnican/tmux-conductor'
+set -g @plugin 'yanlipnican/tmux-conductor'
 ```
 
 ## Custom session script
