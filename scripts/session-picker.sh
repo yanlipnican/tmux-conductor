@@ -38,7 +38,8 @@ generate() {
   CLAIMED_SESSIONS=""
 
   # Pass 1: collect all row data and compute max column widths
-  declare -a R_TYPE R_PREFIX R_BRANCH R_WT_PATH R_WT_BRANCH R_SESSION_NAME R_REPO R_STATUS_ICON
+  declare -a R_TYPE R_PREFIX R_NAME R_BRANCH R_WT_PATH R_WT_BRANCH R_SESSION_NAME R_REPO R_STATUS_ICON
+  local max_name=4     # min = len("NAME")
   local max_branch=6   # min = len("BRANCH")
   local idx=0
 
@@ -47,10 +48,10 @@ generate() {
     local repo_name
     repo_name=$(basename "$main_dir")
 
-    declare -a AT_PREFIX AT_BRANCH AT_PATH AT_WBRANCH AT_SNAME AT_CICON
-    declare -a IT_PREFIX IT_BRANCH IT_PATH IT_WBRANCH IT_SNAME IT_CICON
-    AT_PREFIX=(); AT_BRANCH=(); AT_PATH=(); AT_WBRANCH=(); AT_SNAME=(); AT_CICON=()
-    IT_PREFIX=(); IT_BRANCH=(); IT_PATH=(); IT_WBRANCH=(); IT_SNAME=(); IT_CICON=()
+    declare -a AT_PREFIX AT_NAME AT_BRANCH AT_PATH AT_WBRANCH AT_SNAME AT_CICON
+    declare -a IT_PREFIX IT_NAME IT_BRANCH IT_PATH IT_WBRANCH IT_SNAME IT_CICON
+    AT_PREFIX=(); AT_NAME=(); AT_BRANCH=(); AT_PATH=(); AT_WBRANCH=(); AT_SNAME=(); AT_CICON=()
+    IT_PREFIX=(); IT_NAME=(); IT_BRANCH=(); IT_PATH=(); IT_WBRANCH=(); IT_SNAME=(); IT_CICON=()
     local ac=0 ic=0
 
     while IFS= read -r wt_line; do
@@ -60,6 +61,7 @@ generate() {
       [ -z "$wt_path" ] && continue
 
       branch_display=$(echo "$wt_branch" | sed 's|^[^/]*/||')
+      dir_name=$(basename "$wt_path")
 
       session_name=""
       if [ -n "$SESSIONS" ]; then
@@ -93,15 +95,16 @@ generate() {
         prefix="  ${DIM}○${RESET} "
       fi
 
-      local len
-      len=${#branch_display}; [ $len -gt $max_branch ] && max_branch=$len
+      local nlen blen
+      nlen=${#dir_name}; [ $nlen -gt $max_name ] && max_name=$nlen
+      blen=${#branch_display}; [ $blen -gt $max_branch ] && max_branch=$blen
 
       if [ "$session_col" != "-" ]; then
-        AT_PREFIX[$ac]="$prefix"; AT_BRANCH[$ac]="$branch_display"
+        AT_PREFIX[$ac]="$prefix"; AT_NAME[$ac]="$dir_name"; AT_BRANCH[$ac]="$branch_display"
         AT_PATH[$ac]="$wt_path"; AT_WBRANCH[$ac]="$wt_branch"; AT_SNAME[$ac]="$session_name"; AT_CICON[$ac]="$status_icon"
         ac=$((ac + 1))
       else
-        IT_PREFIX[$ic]="$prefix"; IT_BRANCH[$ic]="$branch_display"
+        IT_PREFIX[$ic]="$prefix"; IT_NAME[$ic]="$dir_name"; IT_BRANCH[$ic]="$branch_display"
         IT_PATH[$ic]="$wt_path"; IT_WBRANCH[$ic]="$wt_branch"; IT_SNAME[$ic]="$session_name"; IT_CICON[$ic]="$status_icon"
         ic=$((ic + 1))
       fi
@@ -114,13 +117,13 @@ generate() {
 
     for ((j = 0; j < ac; j++)); do
       R_TYPE[$idx]="row"; R_PREFIX[$idx]="${AT_PREFIX[$j]}"
-      R_BRANCH[$idx]="${AT_BRANCH[$j]}"
+      R_NAME[$idx]="${AT_NAME[$j]}"; R_BRANCH[$idx]="${AT_BRANCH[$j]}"
       R_WT_PATH[$idx]="${AT_PATH[$j]}"; R_WT_BRANCH[$idx]="${AT_WBRANCH[$j]}"; R_SESSION_NAME[$idx]="${AT_SNAME[$j]}"; R_STATUS_ICON[$idx]="${AT_CICON[$j]}"
       idx=$((idx + 1))
     done
     for ((j = 0; j < ic; j++)); do
       R_TYPE[$idx]="row"; R_PREFIX[$idx]="${IT_PREFIX[$j]}"
-      R_BRANCH[$idx]="${IT_BRANCH[$j]}"
+      R_NAME[$idx]="${IT_NAME[$j]}"; R_BRANCH[$idx]="${IT_BRANCH[$j]}"
       R_WT_PATH[$idx]="${IT_PATH[$j]}"; R_WT_BRANCH[$idx]="${IT_WBRANCH[$j]}"; R_SESSION_NAME[$idx]="${IT_SNAME[$j]}"; R_STATUS_ICON[$idx]="${IT_CICON[$j]}"
       idx=$((idx + 1))
     done
@@ -140,15 +143,14 @@ generate() {
         has_other=1
       fi
 
-      local s_dir s_display
+      local s_dir
       s_dir=$(tmux display-message -t "${session}:1.1" -p '#{pane_current_path}' 2>/dev/null)
-      s_display="${s_dir/#$HOME/\~}"
 
       local prefix
       [ "$session" = "$CURRENT_SESSION" ] && prefix="  ▶ " || prefix="  ${GREEN}●${RESET} "
 
-      local len
-      len=${#s_display}; [ $len -gt $max_branch ] && max_branch=$len
+      local nlen
+      nlen=${#session}; [ $nlen -gt $max_name ] && max_name=$nlen
 
       local other_status_icon=""
       if [ -n "$STATUS_VAR" ]; then
@@ -162,7 +164,7 @@ generate() {
       fi
 
       R_TYPE[$idx]="row"; R_PREFIX[$idx]="$prefix"
-      R_BRANCH[$idx]="$s_display"
+      R_NAME[$idx]="$session"; R_BRANCH[$idx]="—"
       R_WT_PATH[$idx]="$s_dir"; R_WT_BRANCH[$idx]="-"; R_SESSION_NAME[$idx]="$session"; R_STATUS_ICON[$idx]="$other_status_icon"
       idx=$((idx + 1))
     done <<< "$SESSIONS"
@@ -171,19 +173,21 @@ generate() {
   [ $idx -eq 0 ] && return
 
   # Pass 2: output header line (for --header-lines=1), then rows
-  local h_branch h_status
+  local h_name h_branch h_status
+  h_name=$(printf "%-${max_name}s" "NAME")
   h_branch=$(printf "%-${max_branch}s" "BRANCH")
   [ -n "$STATUS_VAR" ] && h_status="  STATUS" || h_status=""
-  printf "    ${DIM}%s%s${RESET}\tHEADER\tHEADER\tHEADER\n" "$h_branch" "$h_status"
+  printf "    ${DIM}%s  %s%s${RESET}\tHEADER\tHEADER\tHEADER\n" "$h_name" "$h_branch" "$h_status"
 
   local lines=""
   for ((i = 0; i < idx; i++)); do
     if [ "${R_TYPE[$i]}" = "header" ]; then
       lines+="${BOLD}${CYAN}  ${R_REPO[$i]}${RESET}"$'\t'HEADER$'\t'HEADER$'\t'HEADER$'\n'
     else
-      local col_branch
+      local col_name col_branch
+      col_name=$(printf "%-${max_name}s" "${R_NAME[$i]}")
       col_branch=$(printf "%-${max_branch}s" "${R_BRANCH[$i]}")
-      lines+="${R_PREFIX[$i]}${col_branch}${R_STATUS_ICON[$i]}"$'\t'"${R_WT_PATH[$i]}"$'\t'"${R_WT_BRANCH[$i]}"$'\t'"${R_SESSION_NAME[$i]}"$'\n'
+      lines+="${R_PREFIX[$i]}${col_name}  ${DIM}${col_branch}${RESET}${R_STATUS_ICON[$i]}"$'\t'"${R_WT_PATH[$i]}"$'\t'"${R_WT_BRANCH[$i]}"$'\t'"${R_SESSION_NAME[$i]}"$'\n'
     fi
   done
 
@@ -223,7 +227,11 @@ if [ "$1" = "--create" ]; then
   local_worktrees_dir=$(tmux show-option -gv @conductor-worktrees-dir 2>/dev/null || echo "$HOME/.local/share/tmux-conductor/worktrees")
   local_worktrees_dir="${local_worktrees_dir/#\~/$HOME}"
 
-  # Pick base branch (default: master or main)
+  # Step 1: enter worktree name
+  read -rp "Worktree name: " wt_name </dev/tty
+  [ -z "$wt_name" ] && exit 0
+
+  # Step 2: pick base branch (default: master or main)
   if git -C "$main_dir" rev-parse --verify master &>/dev/null; then
     default_base="master"
   elif git -C "$main_dir" rev-parse --verify main &>/dev/null; then
@@ -237,9 +245,9 @@ if [ "$1" = "--create" ]; then
           --border-label " base branch " --query "$default_base" --select-1)
   [ -z "$base_branch" ] && exit 0
 
-  # Enter new branch name, re-prompt if already exists
+  # Step 3: enter branch name (pre-filled with worktree name), re-prompt if already exists
   while true; do
-    read -rp "New branch name: " branch </dev/tty
+    read -rp "Branch name: " -i "$wt_name" -e branch </dev/tty
     [ -z "$branch" ] && exit 0
     if git -C "$main_dir" rev-parse --verify "$branch" &>/dev/null; then
       echo "Branch '$branch' already exists, choose a different name."
@@ -248,13 +256,11 @@ if [ "$1" = "--create" ]; then
     fi
   done
 
-  wt_new="$local_worktrees_dir/$repo_name/$branch"
+  wt_new="$local_worktrees_dir/$repo_name/$wt_name"
   mkdir -p "$(dirname "$wt_new")"
   git -C "$main_dir" worktree add "$wt_new" -b "$branch" "$base_branch"
 
-  branch_clean=$(echo "$branch" | sed 's|/|-|g')
-  computed_name="$repo_name-$branch_clean"
-  "$(_new_session_script)" "$wt_new" "$computed_name"
+  "$(_new_session_script)" "$wt_new" "$wt_name"
   exit 0
 fi
 
@@ -408,8 +414,7 @@ session_name=$(echo "$selected" | cut -f4)
 [ "$wt_path" = "HEADER" ] && exit 0
 
 if [ "$session_name" = "-" ]; then
-  computed_name=$(_computed_name "$wt_path" "$wt_branch")
-  "$(_new_session_script)" "$wt_path" "$computed_name"
+  "$(_new_session_script)" "$wt_path" "$(basename "$wt_path")"
 else
   tmux switch-client -t "$session_name"
 fi
