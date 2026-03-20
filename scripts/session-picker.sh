@@ -245,10 +245,10 @@ if [ "$1" = "--create" ]; then
           --border-label " base branch " --query "$default_base" --select-1)
   [ -z "$base_branch" ] && exit 0
 
-  # Step 3: enter branch name (pre-filled with worktree name), re-prompt if already exists
+  # Step 3: enter branch name (default: worktree name), re-prompt if already exists
   while true; do
-    read -rp "Branch name: " -i "$wt_name" -e branch </dev/tty
-    [ -z "$branch" ] && exit 0
+    read -rp "Branch name [$wt_name]: " branch </dev/tty
+    [ -z "$branch" ] && branch="$wt_name"
     if git -C "$main_dir" rev-parse --verify "$branch" &>/dev/null; then
       echo "Branch '$branch' already exists, choose a different name."
     else
