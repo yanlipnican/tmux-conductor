@@ -365,11 +365,15 @@ if [ "$1" = "--delete" ]; then
 
   if [ "$session_name" != "-" ]; then
     confirm=$(printf 'no\nyes' | fzf --prompt "Kill session $session_name? " --height 4 --reverse)
-    [ "$confirm" = "yes" ] && tmux kill-session -t "$session_name"
+    if [ "$confirm" = "yes" ]; then
+      printf "Killing session %s...\n" "$session_name"
+      tmux kill-session -t "$session_name"
+    fi
   else
     branch_name=$(basename "$wt_path")
     confirm=$(printf 'no\nyes' | fzf --prompt "Delete worktree $branch_name? " --height 4 --reverse)
     if [ "$confirm" = "yes" ]; then
+      printf "Deleting worktree %s...\n" "$branch_name"
       git -C "$wt_path" worktree remove "$wt_path" --force 2>/dev/null || rm -rf "$wt_path"
     fi
   fi
